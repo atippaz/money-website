@@ -1,15 +1,20 @@
-import { useContexts } from "@/contexts/Context";
+import useContextStore, { type StateContext } from "@/contexts/Context";
+import { useEffect } from "react";
 
 export default function useBaseApi() {
-  const context = useContexts();
+  let accressToken: string | null = null;
+  useEffect(() => {
+    accressToken = useContextStore((state: StateContext) => state.accessToken);
+  }, []);
+
   const requestInstance = (url: string, option: RequestInit = {}) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
     myHeaders.append("X-API-KEY", API_KEY);
-    if (context) {
-      myHeaders.append("Authorization", context.accressToken);
+    if (accressToken) {
+      myHeaders.append("Authorization", "Bearer " + accressToken);
     }
     const options: RequestInit = {
       headers: myHeaders,
@@ -50,6 +55,20 @@ export default function useBaseApi() {
   };
   return {
     async getRequest(url: string, parseJson = true) {
+      try {
+        return await baseApiInstance(url, {}, parseJson);
+      } catch (ex) {
+        throw ex;
+      }
+    },
+    async deleteRequest(url: string, parseJson = true) {
+      try {
+        return await baseApiInstance(url, {}, parseJson);
+      } catch (ex) {
+        throw ex;
+      }
+    },
+    async putRequest(url: string, parseJson = true) {
       try {
         return await baseApiInstance(url, {}, parseJson);
       } catch (ex) {

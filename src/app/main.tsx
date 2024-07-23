@@ -1,22 +1,12 @@
 "use client";
-
+import useContextStore from "@/contexts/Context";
 import React, { useEffect } from "react";
-import { ContextProvider, useContexts } from "@/contexts/Context";
-
 const main: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  return (
-    <ContextProvider>
-      <MainProvider>{children}</MainProvider>
-    </ContextProvider>
-  );
-};
-const MainProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const ctx = useContexts();
-  // useEffect(() => {
-  //   ctx.refresh();
-  // }, []);
+  const refresh = useContextStore((x) => x.refresh);
+  useEffect(() => {
+    refresh();
+  }, []);
   return <>{children}</>;
 };
+
 export default main;
