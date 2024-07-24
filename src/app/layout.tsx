@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Main from "./main";
+
 const inter = Inter({ subsets: ["latin"] });
 
 export default function RootLayout({

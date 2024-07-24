@@ -1,22 +1,19 @@
 "use client";
 import { ContextProvider, useContexts } from "@/contexts/Context";
 import { SecureProvider } from "@/contexts/Secure";
+import stateManager from "@/contexts/test";
 import React, { useEffect } from "react";
 const main: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <ContextProvider>
-      <SecureProvider>
-        <Setup>{children}</Setup>
-      </SecureProvider>
+      <Setup>{children}</Setup>
     </ContextProvider>
   );
 };
 const Setup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const context = useContexts()!;
-  // // const refresh = useContextStore((x) => x.refresh);
-  // // useEffect(() => {
-  // context.init();
-  // // }, []);
+  useEffect(() => {
+    stateManager.setState(localStorage.getItem("auth") || "");
+  }, []);
   return <>{children}</>;
 };
 export default main;

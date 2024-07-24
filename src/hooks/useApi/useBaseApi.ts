@@ -1,18 +1,16 @@
 // import useContextStore, { type StateContext } from "@/contexts/Context";
 import { useSecure } from "@/contexts/Secure";
+import stateManager from "@/contexts/test";
 import { useEffect } from "react";
 
 export default function useBaseApi() {
-  let accressToken: string | null = null;
-
+  let accressToken: string | null = stateManager.getState();
   // useEffect(() => {
-  const context = useSecure();
   // }, []);
 
   // accressToken = useContextStore((state: StateContext) => state.accessToken);
   // }, []);
   // console.log(context?.accressToken);
-  accressToken = context?.accressToken || "";
   console.log(accressToken);
   const requestInstance = (url: string, option: RequestInit = {}) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
