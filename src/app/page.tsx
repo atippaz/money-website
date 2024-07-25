@@ -1,12 +1,13 @@
 "use client";
 import HomePage from "@/app/homepage/page";
-import stateManager from "@/contexts/test";
-import { useEffect } from "react";
+import Navbar from "@/components/layouts/Navbar";
 const Page = () => {
-  useEffect(() => {
-    console.log(stateManager.getState());
-  }, []);
-  return <HomePage />;
+  return (
+    <>
+      <Navbar />
+      <HomePage />
+    </>
+  );
 };
 
 export default Page;

@@ -5,13 +5,6 @@ import { useEffect } from "react";
 
 export default function useBaseApi() {
   let accressToken: string | null = stateManager.getState();
-  // useEffect(() => {
-  // }, []);
-
-  // accressToken = useContextStore((state: StateContext) => state.accessToken);
-  // }, []);
-  // console.log(context?.accressToken);
-  console.log(accressToken);
   const requestInstance = (url: string, option: RequestInit = {}) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
@@ -36,6 +29,7 @@ export default function useBaseApi() {
     response: Response | null,
     parseJson = true
   ) => {
+    if (response?.status == 401) throw response;
     if (response == null) return null;
     if (parseJson) {
       const data = await response.json();
@@ -50,7 +44,6 @@ export default function useBaseApi() {
   ) => {
     try {
       const response = await requestInstance(url, option);
-      console.log(response);
       const data = await responseInterceptor(response, parseJson);
       return data;
     } catch (error) {

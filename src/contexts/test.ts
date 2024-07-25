@@ -1,9 +1,9 @@
 // stateManager.js
 const createStateManager = () => {
-  let state = "aaaaa";
+  let state: string | null = "aaaaa";
 
   return {
-    setState(value: string) {
+    setState(value: string | null) {
       state = value;
     },
     getState() {
