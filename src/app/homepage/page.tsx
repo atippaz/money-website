@@ -1,135 +1,151 @@
 "use client";
-import { Button } from "@/components/ui/button";
 import { useContexts } from "@/contexts/Context";
-// import { useContexts } from "@/contexts/Context";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-
-interface Dropdown {
-  value: string;
-  label: string;
+import Transection from "@/components/transaction/Transection";
+import { expenseColumns, incomeColumns } from "./state";
+import { Card, Modal } from "antd";
+import stateManager from "@/contexts/stateManager";
+import useIncomeApi from "@/hooks/useApi/useIncomeApi";
+import useExpenseApi from "@/hooks/useApi/useExpenseApi";
+type TransectionType = "expense" | "income" | "saving";
+interface TransectionModel {
+  type: string;
+  value: number;
+  createDate: Date;
+  tagId: string;
 }
-import { CaretSortIcon, CheckIcon } from "@radix-ui/react-icons";
+const DialogTransection: React.FC<{
+  open: boolean;
+  onCancel: Function;
+  onSubmit: Function;
+  type: string;
+}> = ({ open, onCancel, onSubmit, type }) => {
+  const { spendingTypes } = useContexts()!;
 
-import { cn } from "@/lib/utils";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { CommandList } from "cmdk";
-
-function DropdownItem({
-  items = [],
-  placeholder,
-  onSelect,
-}: {
-  items: Dropdown[];
-  placeholder: string;
-  onSelect: Function;
-}) {
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
-  console.log("prop", items);
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-[200px] justify-between"
-        >
-          {value
-            ? items.find((item) => item.value === value)?.label
-            : "Select " + placeholder}
-          <CaretSortIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
-        <Command>
-          <CommandInput placeholder="Search framework..." className="h-9" />
-          <CommandEmpty>No framework found.</CommandEmpty>
-          <CommandGroup>
-            {items != undefined &&
-              items.map((item) => (
-                <CommandList>
-                  <CommandItem
-                    key={item.value}
-                    value={item.value}
-                    onSelect={(currentValue) => {
-                      setValue(currentValue === value ? "" : currentValue);
-                      setOpen(false);
-                    }}
-                  >
-                    {item.label}
-                    <CheckIcon
-                      className={cn(
-                        "ml-auto h-4 w-4",
-                        value === item.value ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                  </CommandItem>
-                </CommandList>
-              ))}
-          </CommandGroup>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <>
+      <Modal
+        title={spendingTypes.find((x) => x.spendingTypeId === type).nameTh}
+        centered
+        open={open}
+        // onOk={() => setModal2Open(false)}
+        onCancel={() => onCancel()}
+      >
+        <p>some contents...</p>
+        <p>some contents...</p>
+        <p>some contents...</p>
+      </Modal>
+    </>
   );
-}
+};
 
 const HomePage = () => {
   const router = useRouter();
-  const { spendingTypes, systemTags } = useContexts()!;
+  const [incomes, setIncome] = useState([]);
+  const [expenses, setExpense] = useState([]);
+  const { spendingTypes, systemTags, customTags } = useContexts()!;
+  const [allTag, setAllTag] = useState([]);
+  const [OpenDialog, setOpenDialog] = useState(false);
+
   useEffect(() => {
     if (window.location.pathname === "/homepage") {
       router.push("/");
     }
-  }, []);
-  useEffect(() => {
-    console.log(spendingTypes);
-    console.log(systemTags);
+  }, [router]);
 
-    // const ctx = useContexts();
-  }, [spendingTypes, systemTags]);
+  useEffect(() => {
+    setAllTag([...systemTags, ...customTags]);
+  }, [systemTags, customTags]);
+
+  const fetchData = async () => {
+    var start = new Date();
+    start.setUTCHours(0, 0, 0, 0);
+    var end = new Date();
+    end.setUTCHours(23, 59, 59, 0);
+
+    try {
+      const [incomeData, expenseData] = await Promise.all([
+        useIncomeApi().getIncomes(start, end),
+        useExpenseApi().getExpenses(start, end),
+      ]);
+
+      setIncome(
+        incomeData.map((g) => ({
+          ...g,
+          key: g.incomeId,
+          tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
+          createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
+            hour12: false,
+          }),
+        }))
+      );
+
+      setExpense(
+        expenseData.map((g) => ({
+          ...g,
+          key: g.expenseId,
+          tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
+          createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
+            hour12: false,
+          }),
+        }))
+      );
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [allTag]);
+
   return (
-    <div className="flex justify-between">
-      <div>dashboard</div>
+    <div className="px-4 py-4 flex flex-col gap-2">
       <div>
-        <div>
-          <Button>เพิ่มรายการ</Button>
-          (
-          <DropdownItem
-            items={spendingTypes.map<Dropdown>((x: any) => {
-              return {
-                value: x.SpendingTypeId,
-                label: x.NameTh,
-              };
-            })}
-            placeholder="Select an item"
-            onSelect={() => {}}
-          />
-          )
-          <DropdownItem
-            items={systemTags.map<Dropdown>((x: any) => {
-              return {
-                value: x.TagId,
-                label: x.NameTh,
-              };
-            })}
-            placeholder="Select an item"
-            onSelect={() => {}}
-          ></DropdownItem>
+        <div className="font-bold">ข้อมูลรายวัน</div>
+        <div className="flex w-full gap-4 my-4">
+          <Transection
+            columns={incomeColumns}
+            dataSource={incomes}
+            type="income"
+            isClickCallBack={() => {
+              setOpenDialog((x) => true);
+            }}
+          ></Transection>
+          <Transection
+            columns={expenseColumns}
+            dataSource={expenses}
+            type="expense"
+            isClickCallBack={() => {
+              setOpenDialog((x) => true);
+            }}
+          ></Transection>
         </div>
       </div>
+      <div>
+        <div>
+          <p className="font-bold">ข้อมูลรายเดือน</p>
+          <div className="flex w-full gap-4 h-60">
+            <div className="w-full flex flex-col">
+              <div className="font-medium text-gray-500 ">เดือนปัจจุบัน</div>
+              <Card className="h-full"></Card>
+            </div>
+            <div className="w-full flex flex-col">
+              <div className="font-medium text-gray-500 ">เดือนที่ผ่านมา</div>
+              <Card className="h-full"></Card>
+            </div>
+          </div>
+        </div>
+      </div>
+      <DialogTransection
+        type="3ca5eecd-0a40-49f6-91bf-f5761c04e7f2"
+        onSubmit={() => {}}
+        open={OpenDialog}
+        onCancel={() => {
+          setOpenDialog((x) => false);
+        }}
+      ></DialogTransection>
     </div>
   );
 };

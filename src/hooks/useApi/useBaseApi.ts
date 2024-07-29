@@ -1,10 +1,7 @@
-// import useContextStore, { type StateContext } from "@/contexts/Context";
-import { useSecure } from "@/contexts/Secure";
-import stateManager from "@/contexts/test";
-import { useEffect } from "react";
+import stateManager from "@/contexts/stateManager";
 
 export default function useBaseApi() {
-  let accressToken: string | null = stateManager.getState();
+  let accressToken: string | null = stateManager.getAccessTokenState();
   const requestInstance = (url: string, option: RequestInit = {}) => {
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
     const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
@@ -33,7 +30,7 @@ export default function useBaseApi() {
     if (response == null) return null;
     if (parseJson) {
       const data = await response.json();
-      return data.data;
+      return data;
     }
     return response;
   };
