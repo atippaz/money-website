@@ -1,13 +1,29 @@
 "use client";
 import { useContexts } from "@/contexts/Context";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Transection from "@/components/transaction/Transection";
 import { expenseColumns, incomeColumns } from "./state";
-import { Card, Modal } from "antd";
-import stateManager from "@/contexts/stateManager";
+import {
+  Button,
+  Card,
+  DatePicker,
+  DatePickerProps,
+  Dropdown,
+  InputNumber,
+  InputNumberProps,
+  MenuProps,
+  Modal,
+  Space,
+  TimePicker,
+  TimePickerProps,
+} from "antd";
+import stateManager from "@/contexts/StateManager";
 import useIncomeApi from "@/hooks/useApi/useIncomeApi";
 import useExpenseApi from "@/hooks/useApi/useExpenseApi";
+import { DownOutlined, UserOutlined } from "@ant-design/icons";
+import TextArea from "antd/es/input/TextArea";
+import dayjs from "dayjs";
 type TransectionType = "expense" | "income" | "saving";
 interface TransectionModel {
   type: string;
@@ -15,14 +31,63 @@ interface TransectionModel {
   createDate: Date;
   tagId: string;
 }
+interface MenuItem {
+  key: string;
+  label: string;
+}
+const DropdownItems: React.FC<{ items: MenuProps["items"] }> = ({
+  items = [],
+}) => {
+  const [selected, setSelected] = useState("ชนิดรายการ");
+  const onClick: MenuProps["onClick"] = ({ key }) => {
+    const item = items.find(
+      (x): x is MenuItem =>
+        typeof x !== "string" && "label" in x! && x.key === key
+    );
+    if (item) {
+      console.log(item.key);
+      setSelected(item.label);
+    }
+  };
+  return (
+    <Dropdown menu={{ items, onClick }} trigger={["click"]}>
+      <Button>
+        <Space>
+          {selected}
+          <DownOutlined />
+        </Space>
+      </Button>
+    </Dropdown>
+  );
+};
 const DialogTransection: React.FC<{
   open: boolean;
   onCancel: Function;
   onSubmit: Function;
   type: string;
-}> = ({ open, onCancel, onSubmit, type }) => {
+  dropdowns: [];
+}> = ({ open, onCancel, onSubmit, type, dropdowns }) => {
   const { spendingTypes } = useContexts()!;
-
+  const items: MenuProps["items"] = dropdowns
+    .filter((x) => x.spendingTypeId === type)
+    .map((x) => {
+      return {
+        label: x.nameTh,
+        onClick: (e) => {
+          console.log(e.Key);
+        },
+        key: x.tagId,
+      };
+    });
+  const onChange: InputNumberProps["onChange"] = (value) => {
+    console.log("changed", value);
+  };
+  const onTimeChange: TimePickerProps["onChange"] = (time, timeString) => {
+    console.log(time, timeString);
+  };
+  const onDateChange: DatePickerProps["onChange"] = (date, dateString) => {
+    console.log(date, dateString);
+  };
   return (
     <>
       <Modal
@@ -31,10 +96,22 @@ const DialogTransection: React.FC<{
         open={open}
         // onOk={() => setModal2Open(false)}
         onCancel={() => onCancel()}
+        width={300}
       >
-        <p>some contents...</p>
-        <p>some contents...</p>
-        <p>some contents...</p>
+        <div className="flex justify-between gap-2">
+          <DatePicker defaultValue={dayjs()} onChange={onDateChange} />
+          <TimePicker
+            defaultValue={dayjs()}
+            onChange={onTimeChange}
+            changeOnScroll
+            needConfirm={false}
+          />
+        </div>
+        <div className="my-2 flex justify-between gap-2">
+          <DropdownItems items={items} />
+          <InputNumber className="w-full" min={1} onChange={onChange} />
+        </div>
+        <TextArea rows={2} />
       </Modal>
     </>
   );
@@ -129,16 +206,27 @@ const HomePage = () => {
           <div className="flex w-full gap-4 h-60">
             <div className="w-full flex flex-col">
               <div className="font-medium text-gray-500 ">เดือนปัจจุบัน</div>
-              <Card className="h-full"></Card>
+              <Card>
+                <div className="h-full">
+                  <BarChartComponent></BarChartComponent>
+                  <PieChartComponent></PieChartComponent>
+                </div>
+              </Card>
             </div>
-            <div className="w-full flex flex-col">
+            <div className="w-full flex flex-col ">
               <div className="font-medium text-gray-500 ">เดือนที่ผ่านมา</div>
-              <Card className="h-full"></Card>
+              <Card>
+                <div className="h-full">
+                  <BarChartComponent></BarChartComponent>
+                  <PieChartComponent></PieChartComponent>
+                </div>
+              </Card>
             </div>
           </div>
         </div>
       </div>
       <DialogTransection
+        dropdowns={allTag}
         type="3ca5eecd-0a40-49f6-91bf-f5761c04e7f2"
         onSubmit={() => {}}
         open={OpenDialog}
@@ -146,6 +234,104 @@ const HomePage = () => {
           setOpenDialog((x) => false);
         }}
       ></DialogTransection>
+    </div>
+  );
+};
+
+import React from "react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
+
+const data = [
+  { name: "January", sales: 4000 },
+  { name: "February", sales: 3000 },
+  { name: "March", sales: 2000 },
+  // ...
+];
+
+const BarChartComponent = () => {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 800, height: 400 });
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        setSize({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return (
+    <div ref={chartContainerRef}>
+      <BarChart width={size.width} height={size.height} data={data}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="sales" fill="#8884d8" />
+      </BarChart>
+    </div>
+  );
+};
+
+import { PieChart, Pie } from "recharts";
+
+const datas = [
+  { name: "Product A", value: 400 },
+  { name: "Product B", value: 300 },
+  { name: "Product C", value: 300 },
+  // ...
+];
+
+const PieChartComponent = () => {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 800, height: 400 });
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        setSize({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        });
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    handleResize();
+
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+  return (
+    <div ref={chartContainerRef}>
+      <PieChart width={size.width} height={size.height}>
+        <Pie
+          data={datas}
+          dataKey="value"
+          nameKey="name"
+          outerRadius={150}
+          fill="#8884d8"
+          label
+        />
+        <Tooltip />
+        <Legend />
+      </PieChart>
     </div>
   );
 };
