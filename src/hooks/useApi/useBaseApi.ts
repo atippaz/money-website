@@ -1,4 +1,4 @@
-import stateManager from "@/contexts/stateManager";
+import stateManager from "@/contexts/StateManager";
 
 export default function useBaseApi() {
   let accressToken: string | null = stateManager.getAccessTokenState();
@@ -26,7 +26,9 @@ export default function useBaseApi() {
     response: Response | null,
     parseJson = true
   ) => {
-    if (response?.status == 401) throw response;
+    if (response?.status == 401) {
+      throw response;
+    }
     if (response == null) return null;
     if (parseJson) {
       const data = await response.json();
@@ -44,7 +46,7 @@ export default function useBaseApi() {
       const data = await responseInterceptor(response, parseJson);
       return data;
     } catch (error) {
-      console.error("Fetch error:", error);
+      console.error("Fetch errorss:", error);
       throw error;
     }
   };

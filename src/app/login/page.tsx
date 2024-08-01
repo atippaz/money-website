@@ -4,19 +4,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import _auth from "@/utils/auth";
-import { useRouter } from "next/navigation";
+
 const LoginPage = () => {
   const [credential, setCredential] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const auth = _auth();
-  const router = useRouter();
 
   async function login() {
     setLoading(true);
     try {
       await auth.login(credential, password);
-      router.push("homepage");
     } catch (ex) {
       console.log(ex);
       alert("a");

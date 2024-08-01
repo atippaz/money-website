@@ -23,7 +23,7 @@ import useIncomeApi from "@/hooks/useApi/useIncomeApi";
 import useExpenseApi from "@/hooks/useApi/useExpenseApi";
 import { DownOutlined, UserOutlined } from "@ant-design/icons";
 import TextArea from "antd/es/input/TextArea";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 type TransectionType = "expense" | "income" | "saving";
 interface TransectionModel {
   type: string;
@@ -35,9 +35,10 @@ interface MenuItem {
   key: string;
   label: string;
 }
-const DropdownItems: React.FC<{ items: MenuProps["items"] }> = ({
-  items = [],
-}) => {
+const DropdownItems: React.FC<{
+  items: MenuProps["items"];
+  callback: Function;
+}> = ({ items = [], callback }) => {
   const [selected, setSelected] = useState("ชนิดรายการ");
   const onClick: MenuProps["onClick"] = ({ key }) => {
     const item = items.find(
@@ -45,7 +46,7 @@ const DropdownItems: React.FC<{ items: MenuProps["items"] }> = ({
         typeof x !== "string" && "label" in x! && x.key === key
     );
     if (item) {
-      console.log(item.key);
+      callback(item.key);
       setSelected(item.label);
     }
   };
@@ -63,11 +64,23 @@ const DropdownItems: React.FC<{ items: MenuProps["items"] }> = ({
 const DialogTransection: React.FC<{
   open: boolean;
   onCancel: Function;
-  onSubmit: Function;
+  onSubmit: ({
+    date,
+    tagId,
+    value,
+  }: {
+    date: dayjs.Dayjs;
+    tagId: string;
+    value: number;
+  }) => void;
   type: string;
   dropdowns: [];
 }> = ({ open, onCancel, onSubmit, type, dropdowns }) => {
   const { spendingTypes } = useContexts()!;
+  const [date, setDate] = useState<dayjs.Dayjs>(dayjs());
+  const [value, setValue] = useState<number>(0);
+  const [tagId, setTagId] = useState<string>("");
+
   const items: MenuProps["items"] = dropdowns
     .filter((x) => x.spendingTypeId === type)
     .map((x) => {
@@ -80,13 +93,20 @@ const DialogTransection: React.FC<{
       };
     });
   const onChange: InputNumberProps["onChange"] = (value) => {
-    console.log("changed", value);
+    setValue((x) => parseFloat(value?.toString() || "0"));
   };
   const onTimeChange: TimePickerProps["onChange"] = (time, timeString) => {
-    console.log(time, timeString);
+    setDate((x) =>
+      x
+        .hour(time.get("hour"))
+        .minute(time.get("minute"))
+        .second(time.get("second"))
+    );
   };
   const onDateChange: DatePickerProps["onChange"] = (date, dateString) => {
-    console.log(date, dateString);
+    setDate((x) =>
+      x.day(date.get("day")).month(date.get("month")).year(date.get("year"))
+    );
   };
   return (
     <>
@@ -94,24 +114,35 @@ const DialogTransection: React.FC<{
         title={spendingTypes.find((x) => x.spendingTypeId === type).nameTh}
         centered
         open={open}
-        // onOk={() => setModal2Open(false)}
+        onOk={() => onSubmit({ date, tagId, value })}
         onCancel={() => onCancel()}
         width={300}
       >
         <div className="flex justify-between gap-2">
-          <DatePicker defaultValue={dayjs()} onChange={onDateChange} />
+          <DatePicker defaultValue={date} onChange={onDateChange} />
           <TimePicker
-            defaultValue={dayjs()}
+            defaultValue={date}
             onChange={onTimeChange}
             changeOnScroll
             needConfirm={false}
           />
         </div>
         <div className="my-2 flex justify-between gap-2">
-          <DropdownItems items={items} />
-          <InputNumber className="w-full" min={1} onChange={onChange} />
+          <DropdownItems
+            items={items}
+            callback={(e: string) => {
+              setTagId((x) => e);
+            }}
+          />
+          <InputNumber
+            placeholder="จำนวน"
+            className="w-full"
+            min={1}
+            value={value}
+            onChange={onChange}
+          />
         </div>
-        <TextArea rows={2} />
+        <TextArea disabled placeholder="โน๊ตช่วยจำ" rows={2} />
       </Modal>
     </>
   );
@@ -124,50 +155,60 @@ const HomePage = () => {
   const { spendingTypes, systemTags, customTags } = useContexts()!;
   const [allTag, setAllTag] = useState([]);
   const [OpenDialog, setOpenDialog] = useState(false);
+  const [type, setType] = useState<string | null>(null);
+  const [summaryTransection, setSummaryTransection] = useState<[]>([]);
 
+  const incomeApi = useIncomeApi();
+  const expenseApi = useExpenseApi();
+  const start = new Date();
+  start.setUTCHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setUTCHours(23, 59, 59, 0);
   useEffect(() => {
     if (window.location.pathname === "/homepage") {
       router.push("/");
     }
   }, [router]);
-
+  async function getExpenseDaily() {
+    const expenseData = await expenseApi.getExpenses(start, end);
+    console.log(expenseData);
+    setExpense(
+      expenseData.map((g) => ({
+        ...g,
+        key: g.expenseId,
+        tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
+        createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
+          hour12: false,
+        }),
+      }))
+    );
+  }
+  async function getIncomeDaily() {
+    const incomeData = await incomeApi.getIncomes(start, end);
+    setIncome(
+      incomeData.map((g) => ({
+        ...g,
+        key: g.incomeId,
+        tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
+        createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
+          hour12: false,
+        }),
+      }))
+    );
+  }
   useEffect(() => {
     setAllTag([...systemTags, ...customTags]);
   }, [systemTags, customTags]);
 
   const fetchData = async () => {
-    var start = new Date();
-    start.setUTCHours(0, 0, 0, 0);
-    var end = new Date();
-    end.setUTCHours(23, 59, 59, 0);
-
     try {
+      await Promise.all([getExpenseDaily(), getIncomeDaily()]);
       const [incomeData, expenseData] = await Promise.all([
-        useIncomeApi().getIncomes(start, end),
-        useExpenseApi().getExpenses(start, end),
+        incomeApi.getSummaryIncomesByMonth(7, 2024),
+        expenseApi.getSummaryExpensesByMonth(7, 2024),
       ]);
-
-      setIncome(
-        incomeData.map((g) => ({
-          ...g,
-          key: g.incomeId,
-          tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
-          createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
-            hour12: false,
-          }),
-        }))
-      );
-
-      setExpense(
-        expenseData.map((g) => ({
-          ...g,
-          key: g.expenseId,
-          tagId: allTag.find((f) => f.tagId === g.tagId)?.nameTh || g.tagId,
-          createdDate: new Date(g.createdDate).toLocaleTimeString("en-GB", {
-            hour12: false,
-          }),
-        }))
-      );
+      console.log(incomeData, expenseData);
+      setSummaryTransection((x) => []);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -176,18 +217,55 @@ const HomePage = () => {
   useEffect(() => {
     fetchData();
   }, [allTag]);
-
+  async function createTransection({
+    date,
+    tagId,
+    value,
+  }: {
+    date: dayjs.Dayjs;
+    tagId: string;
+    value: number;
+  }) {
+    if (date == null || tagId == null || tagId == "" || value == 0) {
+      return;
+    }
+    console.log(date.toISOString());
+    // รายจ่าย
+    try {
+      if (type == spendingTypes[0].spendingTypeId) {
+        const res = await expenseApi.createExpense({
+          date: date.toISOString(),
+          value,
+          tagId,
+        });
+        await getExpenseDaily();
+        return;
+      }
+      // รายรับ
+      if (type == spendingTypes[1].spendingTypeId) {
+        const res = await incomeApi.createIncome({
+          date: date.toISOString(),
+          value,
+          tagId,
+        });
+        console.log(res);
+        await getIncomeDaily();
+        return;
+      }
+    } catch (ex) {}
+  }
   return (
     <div className="px-4 py-4 flex flex-col gap-2">
       <div>
         <div className="font-bold">ข้อมูลรายวัน</div>
-        <div className="flex w-full gap-4 my-4">
+        <div className="flex w-full gap-4 my-4 ">
           <Transection
             columns={incomeColumns}
             dataSource={incomes}
             type="income"
             isClickCallBack={() => {
               setOpenDialog((x) => true);
+              setType(spendingTypes[1].spendingTypeId);
             }}
           ></Transection>
           <Transection
@@ -196,6 +274,7 @@ const HomePage = () => {
             type="expense"
             isClickCallBack={() => {
               setOpenDialog((x) => true);
+              setType(spendingTypes[0].spendingTypeId);
             }}
           ></Transection>
         </div>
@@ -207,33 +286,41 @@ const HomePage = () => {
             <div className="w-full flex flex-col">
               <div className="font-medium text-gray-500 ">เดือนปัจจุบัน</div>
               <Card>
-                <div className="h-full">
-                  <BarChartComponent></BarChartComponent>
-                  <PieChartComponent></PieChartComponent>
+                <div className="h-full flex justify-between">
+                  <BarChartComponent
+                    datas={summaryTransection}
+                  ></BarChartComponent>
+                  <PieChartComponent datas={[]}></PieChartComponent>
                 </div>
               </Card>
             </div>
             <div className="w-full flex flex-col ">
               <div className="font-medium text-gray-500 ">เดือนที่ผ่านมา</div>
               <Card>
-                <div className="h-full">
-                  <BarChartComponent></BarChartComponent>
-                  <PieChartComponent></PieChartComponent>
+                <div>ค่าใช้จ่าย vs รายรับ</div>
+                <div className="h-full flex justify-between">
+                  <BarChartComponent datas={[]}></BarChartComponent>
+                  <PieChartComponent datas={[]}></PieChartComponent>
                 </div>
               </Card>
             </div>
           </div>
         </div>
       </div>
-      <DialogTransection
-        dropdowns={allTag}
-        type="3ca5eecd-0a40-49f6-91bf-f5761c04e7f2"
-        onSubmit={() => {}}
-        open={OpenDialog}
-        onCancel={() => {
-          setOpenDialog((x) => false);
-        }}
-      ></DialogTransection>
+      {type && (
+        <DialogTransection
+          dropdowns={allTag}
+          type={type}
+          onSubmit={(payload) => {
+            setOpenDialog(false);
+            createTransection(payload);
+          }}
+          open={OpenDialog}
+          onCancel={() => {
+            setOpenDialog((x) => false);
+          }}
+        ></DialogTransection>
+      )}
     </div>
   );
 };
@@ -249,57 +336,50 @@ import {
   Legend,
 } from "recharts";
 
-const data = [
-  { name: "January", sales: 4000 },
-  { name: "February", sales: 3000 },
-  { name: "March", sales: 2000 },
-  // ...
-];
-
-const BarChartComponent = () => {
+const BarChartComponent = ({
+  datas,
+}: {
+  datas: { name: string; value: number }[];
+}) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 400 });
 
   useEffect(() => {
     const handleResize = () => {
+      console.log(chartContainerRef.current);
       if (chartContainerRef.current) {
         setSize({
-          width: chartContainerRef.current.clientWidth,
+          width: chartContainerRef.current.clientWidth / 2 - 40,
           height: chartContainerRef.current.clientHeight,
         });
       }
     };
 
-    window.addEventListener("resize", handleResize);
     handleResize();
-
-    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   return (
     <div ref={chartContainerRef}>
-      <BarChart width={size.width} height={size.height} data={data}>
+      <BarChart width={size.width} height={size.height} data={datas}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />
         <YAxis />
         <Tooltip />
         <Legend />
-        <Bar dataKey="sales" fill="#8884d8" />
+        <Bar dataKey="value" fill="#8884d8" />
       </BarChart>
     </div>
   );
 };
 
 import { PieChart, Pie } from "recharts";
+import { promises } from "dns";
 
-const datas = [
-  { name: "Product A", value: 400 },
-  { name: "Product B", value: 300 },
-  { name: "Product C", value: 300 },
-  // ...
-];
-
-const PieChartComponent = () => {
+const PieChartComponent = ({
+  datas,
+}: {
+  datas: { name: string; value: number }[];
+}) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 800, height: 400 });
 
@@ -307,16 +387,13 @@ const PieChartComponent = () => {
     const handleResize = () => {
       if (chartContainerRef.current) {
         setSize({
-          width: chartContainerRef.current.clientWidth,
+          width: chartContainerRef.current.clientWidth / 2 - 40,
           height: chartContainerRef.current.clientHeight,
         });
       }
     };
 
-    window.addEventListener("resize", handleResize);
     handleResize();
-
-    return () => window.removeEventListener("resize", handleResize);
   }, []);
   return (
     <div ref={chartContainerRef}>

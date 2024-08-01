@@ -2,7 +2,7 @@ import useSpendingTypeApi from "@/hooks/useApi/useSpendingTypeApi";
 import useSystemTagApi from "@/hooks/useApi/useSystemTagApi";
 import useUserApi from "@/hooks/useApi/useUserApi";
 import React, { createContext, useContext, useState, useEffect } from "react";
-import stateManager from "./stateManager";
+import stateManager from "./StateManager";
 import useCustomTagApi from "@/hooks/useApi/useCustomTagApi";
 
 interface Context {
@@ -10,7 +10,7 @@ interface Context {
   customTags: [];
 
   spendingTypes: [];
-  refresh: () => Promise<void>;
+  refresh: (redirecting?: boolean) => Promise<void>;
 }
 
 const Provider = createContext<Context | null>(null);
@@ -22,22 +22,22 @@ export const ContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const [spendingTypes, setspendingTypes] = useState<[]>([]);
 
   const [loading, setLoading] = useState<boolean>(true);
-
-  const refresh = async () => {
+  const refresh = async (redirecting: boolean = false) => {
+    setLoading(true);
+    if (window.location.pathname == "/login" && !redirecting) {
+      setLoading(false);
+      return;
+    }
     try {
-      setLoading(true);
       let accressToken: string | null = stateManager.getAccessTokenState();
 
       const systemTagApi = useSystemTagApi();
       const spendingTypeApi = useSpendingTypeApi();
-      const customTagApi = useCustomTagApi();
       const types = await spendingTypeApi.getAll();
       const tags = await systemTagApi.getAll();
-      const customtags = await customTagApi.getAll();
 
       setSystemTags((x) => tags);
       setspendingTypes((x) => types);
-      setCustomTags((x) => customtags);
       const userApi = useUserApi();
       try {
         if (accressToken != null) {
@@ -51,9 +51,13 @@ export const ContextProvider: React.FC<{ children: React.ReactNode }> = ({
             userId: res.userId,
             userName: res.userName,
           });
+          const customTagApi = useCustomTagApi();
+          const customtags = await customTagApi.getAll();
+          setCustomTags((x) => customtags);
+        } else {
+          throw new Error("not authen");
         }
       } catch (er) {
-        console.log(er);
         if (window.location.pathname != "/login") {
           window.location.href = "/login";
         }
