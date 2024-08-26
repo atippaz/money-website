@@ -18,7 +18,7 @@ const transection: React.FC<{
     <>
       <Card
         size="small"
-        className="w-full max-h-80"
+        className="w-full  "
         title={header}
         bordered={false}
         extra={
@@ -33,7 +33,7 @@ const transection: React.FC<{
         <Table
           size="small"
           pagination={{ position: ["none"] }}
-          className="w-full"
+          className="w-full h-full"
           dataSource={dataSource}
           columns={columns}
         />

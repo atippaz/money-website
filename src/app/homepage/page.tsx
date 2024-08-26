@@ -10,6 +10,7 @@ import {
   DatePicker,
   DatePickerProps,
   Dropdown,
+  Input,
   InputNumber,
   InputNumberProps,
   MenuProps,
@@ -36,9 +37,11 @@ interface MenuItem {
   label: string;
 }
 const DropdownItems: React.FC<{
+  itemSelect: string;
   items: MenuProps["items"];
   callback: Function;
-}> = ({ items = [], callback }) => {
+}> = ({ items = [], callback, itemSelect }) => {
+  const [create, setCreate] = useState(false);
   const [selected, setSelected] = useState("ชนิดรายการ");
   const onClick: MenuProps["onClick"] = ({ key }) => {
     const item = items.find(
@@ -46,10 +49,35 @@ const DropdownItems: React.FC<{
         typeof x !== "string" && "label" in x! && x.key === key
     );
     if (item) {
-      callback(item.key);
       setSelected(item.label);
+      callback(item.key);
     }
   };
+  useEffect(() => {
+    setSelected(
+      (x) => items.find((y) => y?.key === itemSelect)?.label || "ชนิดรายการ"
+    );
+  }, [itemSelect]);
+  useEffect(() => {
+    if (items.findIndex((x) => x?.key == -1) == -1) {
+      items.push({
+        label: create ? (
+          <Input aria-label="ชื่อรายการ"></Input>
+        ) : (
+          <span>เพิ่มรายการใหม่</span>
+        ),
+        onClick: (e) => {
+          setCreate(true);
+          // items.push({
+          //   label: <Input aria-label="ชื่อรายการ"></Input>,
+          //   key: -2,
+          //   onClick: (x) => {},
+          // });
+        },
+        key: -1,
+      });
+    }
+  }, []);
   return (
     <Dropdown menu={{ items, onClick }} trigger={["click"]}>
       <Button>
@@ -114,7 +142,12 @@ const DialogTransection: React.FC<{
         title={spendingTypes.find((x) => x.spendingTypeId === type).nameTh}
         centered
         open={open}
-        onOk={() => onSubmit({ date, tagId, value })}
+        onOk={() => {
+          onSubmit({ date, tagId, value });
+          setDate((x) => dayjs());
+          setValue((x) => 0);
+          setTagId((x) => "");
+        }}
         onCancel={() => onCancel()}
         width={300}
       >
@@ -129,6 +162,7 @@ const DialogTransection: React.FC<{
         </div>
         <div className="my-2 flex justify-between gap-2">
           <DropdownItems
+            itemSelect={tagId}
             items={items}
             callback={(e: string) => {
               setTagId((x) => e);
@@ -156,7 +190,12 @@ const HomePage = () => {
   const [allTag, setAllTag] = useState([]);
   const [OpenDialog, setOpenDialog] = useState(false);
   const [type, setType] = useState<string | null>(null);
-  const [summaryTransection, setSummaryTransection] = useState<[]>([]);
+  const [summaryIncomeTransection, setSummaryIncomeTransection] = useState<[]>(
+    []
+  );
+  const [summaryExpenseTransection, setSummaryExpenseTransection] = useState<
+    []
+  >([]);
 
   const incomeApi = useIncomeApi();
   const expenseApi = useExpenseApi();
@@ -204,11 +243,12 @@ const HomePage = () => {
     try {
       await Promise.all([getExpenseDaily(), getIncomeDaily()]);
       const [incomeData, expenseData] = await Promise.all([
-        incomeApi.getSummaryIncomesByMonth(7, 2024),
-        expenseApi.getSummaryExpensesByMonth(7, 2024),
+        incomeApi.getSummaryIncomesByMonth(8, 2024),
+        expenseApi.getSummaryExpensesByMonth(8, 2024),
       ]);
       console.log(incomeData, expenseData);
-      setSummaryTransection((x) => []);
+      setSummaryExpenseTransection((x) => expenseData);
+      setSummaryIncomeTransection((x) => incomeData);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
@@ -258,7 +298,7 @@ const HomePage = () => {
     <div className="px-4 py-4 flex flex-col gap-2">
       <div>
         <div className="font-bold">ข้อมูลรายวัน</div>
-        <div className="flex w-full gap-4 my-4 ">
+        <div className="flex w-full h-full gap-4 my-4 ">
           <Transection
             columns={incomeColumns}
             dataSource={incomes}
@@ -288,13 +328,38 @@ const HomePage = () => {
               <Card>
                 <div className="h-full flex justify-between">
                   <BarChartComponent
-                    datas={summaryTransection}
+                    datas={summaryExpenseTransection}
                   ></BarChartComponent>
-                  <PieChartComponent datas={[]}></PieChartComponent>
+
+                  <BarChartComponent
+                    datas={summaryIncomeTransection}
+                  ></BarChartComponent>
+                  <BarChartComponent
+                    datas={[
+                      {
+                        name: "expense",
+                        value: summaryExpenseTransection.reduce(
+                          (acc, item) => acc + parseFloat(item.value),
+                          0
+                        ),
+                      },
+                      {
+                        name: "income",
+                        value: summaryIncomeTransection.reduce(
+                          (acc, item) => acc + parseFloat(item.value),
+                          0
+                        ),
+                      },
+                    ]}
+                  ></BarChartComponent>
+
+                  {/* <PieChartComponent
+                    datas={summaryIncomeTransection}
+                  ></PieChartComponent> */}
                 </div>
               </Card>
             </div>
-            <div className="w-full flex flex-col ">
+            {/* <div className="w-full flex flex-col ">
               <div className="font-medium text-gray-500 ">เดือนที่ผ่านมา</div>
               <Card>
                 <div>ค่าใช้จ่าย vs รายรับ</div>
@@ -303,7 +368,7 @@ const HomePage = () => {
                   <PieChartComponent datas={[]}></PieChartComponent>
                 </div>
               </Card>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>
